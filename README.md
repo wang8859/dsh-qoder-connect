@@ -40,13 +40,13 @@
 
 3. 重启 DSH（或运行 `C:\Users\<你的用户名>\.dsh\dsh-workbuddy-restart.cmd` 一键重启宿主）。
 
-4. 打开 DSH，在模型选择器中查找 `Qoder` / `Qoder CN` 分组下的模型（如 `Auto`、`Qwen3-Plus`、`DeepSeek-V4-Pro`、`GLM-5`、`Kimi-K2`、`MiniMax` 等）。
+4. 打开 DSH，在模型选择器中查找 `Qoder` / `Qoder CN` 分组下的模型。模型列表与桌面客户端完全一致（由客户端模型目录缓存解码而来），例如国际版包含 `Auto`、`Ultimate`、`Fast`、`Performance`、`Efficient`、`Qwen3.8-Flash`、`Qwen3.8-Max`、`Qwen3.7-Plus`、`Qwen3.7-Max`、`DeepSeek-V4-Pro`、`DeepSeek-Flash`、`GLM-5.3`、`GLM-5.3-Flash`、`Kimi-K3`、`Kimi-K2.8-Preview`、`MiniMax-M3`、`Sonus`、`Cantus` 等；Qoder CN 另含 `Qwen3.7-Flash`、`GLM-5.2` 等区域专属模型。
 
 ## 使用
 
 ### 模型调用
 
-在 DSH 模型选择器中选择 Qoder 系列模型即可正常对话。支持思考程度档位的模型会在选择器中暴露 `off / low / medium / high / xhigh` 等档位，选择后插件将 DSH 传来的 `reasoning_effort` 原样透传给上游。
+在 DSH 模型选择器中选择 Qoder 系列模型即可正常对话。支持思考程度档位的模型会在选择器中暴露 `off / low / medium / high / xhigh` 等档位（档位集合取自客户端模型目录的 `thinking_config`，不同模型不同），选择后插件将 DSH 传来的 `reasoning_effort` 原样透传给上游。
 
 ### 状态卡片
 
@@ -85,6 +85,7 @@ DSH 设置页 → 插件 → `dsh-qoder-connect`，可看到：
 - **推理协议**：Qoder 网关接受 `Bearer <dt- OAuth token>` 直接调用 `POST https://api2-v2.qoder.sh/model/v1/chat/completions`（OpenAI 兼容流式）。插件在本地起一个 OpenAI 兼容 shim，把 DSH 的请求转发到该网关，并把响应的 SSE 流原样返回。
 - **额度与签到**：调用 `GET https://openapi.qoder.sh/sash/api/v2/me/usage` 查询积分；`GET https://openapi.qoder.com.cn/sash/api/v1/me/campaigns`（CN 用 `.com.cn`）获取每日签到活动列表，再对 `CLAIMABLE` 的活动调用 claim 接口领取。
 - **区域隔离**：Qoder CN 的 `dt-` 令牌只在 CN 域生效，且 CN 推理面位于 VPC 私网，公网不可达；因此 CN 账号的额度/签到走 CN 网关，模型推理委托给国际通道，卡片中分别展示。
+- **模型目录**：插件内置的 `CATALOG` 由 Qoder 客户端本地模型缓存（`~/.qoder/.models/<uid>/catalog-v6`，AES 加密）经客户端 SDK 的解密函数解码而来，因此模型 key、显示名、思考档位、上下文长度均与桌面客户端一致（0.1.2 起，替换了早期手写的旧快照）。
 - **思考程度透传**：DSH 的 pi-ai 层把用户选择的思考程度映射为 `reasoning_effort` 参数发送给 shim；`buildChatBody` 检测到该字段后**原样写入**上游请求体，不做映射、改名或丢弃。已实测 `high` / `xhigh` 真实请求返回 200 且响应正常。
 
 ## 常见问题
