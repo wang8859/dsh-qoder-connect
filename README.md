@@ -89,6 +89,7 @@ DSH 设置页 → 插件 → `dsh-qoder-connect`，可看到：
 - **区域隔离**：Qoder CN 的 `dt-` 令牌只在 CN 域生效，且 CN 推理面位于 VPC 私网，公网不可达；因此 CN 账号的额度/签到走 CN 网关，模型推理委托给国际通道，卡片中分别展示。
 - **模型目录**：插件内置的 `CATALOG` 由 Qoder 客户端本地模型缓存（`~/.qoder/.models/<uid>/catalog-v6`，AES 加密）经客户端 SDK 的解密函数解码而来，因此模型 key、显示名、思考档位、上下文长度均与桌面客户端一致（0.1.2 起，替换了早期手写的旧快照）。
 - **模型 ID 映射**：客户端目录的 `key` 是 UI 标识（如 `qfmodel` = Qwen3.8-Flash），而 `api2-v2` 网关要求真实推理模型 ID（如 `qwen-flash`）。0.1.3 起插件内置 `MODEL_ID_ALIAS`（`qfmodel → qwen-flash`、`qmodel → qwen-plus`），在 `buildChatBody` 中完成映射后再发送；未映射的 key 原样透传，由网关决定是否支持。
+- **5xx 自动重试（0.1.4）**：免费模型后端偶发 `500 internal server error`（瞬时抖动）。`chat()` 对 5xx 响应自动重试最多 3 次（300ms / 600ms / 900ms 退避），大幅减少用户可见的偶发 500；连续失败才向上抛出原始错误。
 - **思考程度透传**：DSH 的 pi-ai 层把用户选择的思考程度映射为 `reasoning_effort` 参数发送给 shim；`buildChatBody` 检测到该字段后**原样写入**上游请求体，不做映射、改名或丢弃。已实测 `high` / `xhigh` 真实请求返回 200 且响应正常。
 
 ## 常见问题
