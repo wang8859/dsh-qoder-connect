@@ -1,0 +1,17 @@
+# Dependencies / local state
+node_modules/
+.pnpm-store/
+
+# Secrets and local credentials
+.qoder-credentials.json
+auth.v1.dat
+*.dat
+
+# Logs and temp files
+*.log
+_tmp/
+tmp/
+
+# OS / editor
+.DS_Store
+Thumbs.db
