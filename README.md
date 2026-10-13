@@ -42,11 +42,13 @@
 
 4. 打开 DSH，在模型选择器中查找 `Qoder` / `Qoder CN` 分组下的模型。模型列表与桌面客户端完全一致（由客户端模型目录缓存解码而来），例如国际版包含 `Auto`、`Ultimate`、`Fast`、`Performance`、`Efficient`、`Qwen3.8-Flash`、`Qwen3.8-Max`、`Qwen3.7-Plus`、`Qwen3.7-Max`、`DeepSeek-V4-Pro`、`DeepSeek-Flash`、`GLM-5.3`、`GLM-5.3-Flash`、`Kimi-K3`、`Kimi-K2.8-Preview`、`MiniMax-M3`、`Sonus`、`Cantus` 等；Qoder CN 另含 `Qwen3.7-Flash`、`GLM-5.2` 等区域专属模型。
 
+   > **模型可用性（0.1.3）**：`Qwen3.8-Flash`（免费）与 `Qwen3.7-Plus` 已实测可通过 `api2-v2` 网关直接调用。客户端模型目录中的 UI key（如 `qfmodel`）与网关真实模型 ID 不同，插件会自动把 `qfmodel` 映射为 `qwen-flash`、`qmodel` 映射为 `qwen-plus` 后再请求上游；其余模型（`Qwen3.8-Max`、`GLM-5.3`、`Kimi-K3`、`DeepSeek-V4-Pro` 等）目前客户端走独立后端，`api2-v2` 网关暂不认对应 ID，选择后会返回 `invalid_model_error`。推荐日常使用 `Auto`、`Qwen3.8-Flash` 或 `Qwen3.7-Plus`。
+
 ## 使用
 
 ### 模型调用
 
-在 DSH 模型选择器中选择 Qoder 系列模型即可正常对话。支持思考程度档位的模型会在选择器中暴露 `off / low / medium / high / xhigh` 等档位（档位集合取自客户端模型目录的 `thinking_config`，不同模型不同），选择后插件将 DSH 传来的 `reasoning_effort` 原样透传给上游。
+在 DSH 模型选择器中选择 Qoder 系列模型即可对话。支持思考程度档位的模型会在选择器中暴露 `off / low / medium / high / xhigh` 等档位（档位集合取自客户端模型目录的 `thinking_config`，不同模型不同），选择后插件将 DSH 传来的 `reasoning_effort` 原样透传给上游。**免费模型 `Qwen3.8-Flash` 与 `Qwen3.7-Plus` 为开箱即用推荐模型**；选择其余高级模型时若上游返回 `invalid_model_error`，说明该模型尚未开放给 `api2-v2` 网关，请改用上述推荐模型。
 
 ### 状态卡片
 
@@ -86,6 +88,7 @@ DSH 设置页 → 插件 → `dsh-qoder-connect`，可看到：
 - **额度与签到**：调用 `GET https://openapi.qoder.sh/sash/api/v2/me/usage` 查询积分；`GET https://openapi.qoder.com.cn/sash/api/v1/me/campaigns`（CN 用 `.com.cn`）获取每日签到活动列表，再对 `CLAIMABLE` 的活动调用 claim 接口领取。
 - **区域隔离**：Qoder CN 的 `dt-` 令牌只在 CN 域生效，且 CN 推理面位于 VPC 私网，公网不可达；因此 CN 账号的额度/签到走 CN 网关，模型推理委托给国际通道，卡片中分别展示。
 - **模型目录**：插件内置的 `CATALOG` 由 Qoder 客户端本地模型缓存（`~/.qoder/.models/<uid>/catalog-v6`，AES 加密）经客户端 SDK 的解密函数解码而来，因此模型 key、显示名、思考档位、上下文长度均与桌面客户端一致（0.1.2 起，替换了早期手写的旧快照）。
+- **模型 ID 映射**：客户端目录的 `key` 是 UI 标识（如 `qfmodel` = Qwen3.8-Flash），而 `api2-v2` 网关要求真实推理模型 ID（如 `qwen-flash`）。0.1.3 起插件内置 `MODEL_ID_ALIAS`（`qfmodel → qwen-flash`、`qmodel → qwen-plus`），在 `buildChatBody` 中完成映射后再发送；未映射的 key 原样透传，由网关决定是否支持。
 - **思考程度透传**：DSH 的 pi-ai 层把用户选择的思考程度映射为 `reasoning_effort` 参数发送给 shim；`buildChatBody` 检测到该字段后**原样写入**上游请求体，不做映射、改名或丢弃。已实测 `high` / `xhigh` 真实请求返回 200 且响应正常。
 
 ## 常见问题
