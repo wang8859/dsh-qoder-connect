@@ -40,15 +40,15 @@
 
 3. 重启 DSH（或运行 `C:\Users\<你的用户名>\.dsh\dsh-workbuddy-restart.cmd` 一键重启宿主）。
 
-4. 打开 DSH，在模型选择器中查找 `Qoder` / `Qoder CN` 分组下的模型。模型列表与桌面客户端完全一致（由客户端模型目录缓存解码而来），例如国际版包含 `Auto`、`Ultimate`、`Fast`、`Performance`、`Efficient`、`Qwen3.8-Flash`、`Qwen3.8-Max`、`Qwen3.7-Plus`、`Qwen3.7-Max`、`DeepSeek-V4-Pro`、`DeepSeek-Flash`、`GLM-5.3`、`GLM-5.3-Flash`、`Kimi-K3`、`Kimi-K2.8-Preview`、`MiniMax-M3`、`Sonus`、`Cantus` 等；Qoder CN 另含 `Qwen3.7-Flash`、`GLM-5.2` 等区域专属模型。
+4. 打开 DSH，在模型选择器中查找 `Qoder` / `Qoder CN` 分组下的模型。插件暴露的是**逐个经上游网关真实请求验证可用**的模型集合——国际版 `Auto`、`Ultimate`、`Performance`、`Qwen-Plus`、`Qwen-Flash`、`Kimi-K2.8-Preview`、`GLM-5.3`、`DeepSeek-V4-Pro`、`MiniMax-M3`，Qoder CN 为 `Auto`、`Qwen-Plus`、`Qwen-Flash`、`GLM-5.3`、`DeepSeek-V4-Pro`、`Kimi-K2.8-Preview`、`MiniMax-M2.7`。**选择器里能看到的，就是能用的。**
 
-   > **模型可用性（0.1.3）**：`Qwen3.8-Flash`（免费）与 `Qwen3.7-Plus` 已实测可通过 `api2-v2` 网关直接调用。客户端模型目录中的 UI key（如 `qfmodel`）与网关真实模型 ID 不同，插件会自动把 `qfmodel` 映射为 `qwen-flash`、`qmodel` 映射为 `qwen-plus` 后再请求上游；其余模型（`Qwen3.8-Max`、`GLM-5.3`、`Kimi-K3`、`DeepSeek-V4-Pro` 等）目前客户端走独立后端，`api2-v2` 网关暂不认对应 ID，选择后会返回 `invalid_model_error`。推荐日常使用 `Auto`、`Qwen3.8-Flash` 或 `Qwen3.7-Plus`。
+   > **模型可用性（0.1.5）**：不再照抄客户端 UI 那份「看起来更丰富」的列表。客户端模型列表接口（`/api/v2/model/list?Encode=1`）依赖客户端内置 WASM 运行时做请求签名，纯 HTTP 复刻不了；而客户端 UI 上的 key（`qmodel_38max`、`qfmodel`、`qmodel_latest`、`q37fmodel`、`fast`、`smodel`、`cmodel` 等）直接丢给推理网关会被判 `Unsupported model`。0.1.5 改为**以网关实测白名单为准**：`auto` / `qwen-plus` / `qwen-flash` / `gmodel` / `dmodel` / `kmodel` / `mmodel` / `performance` / `ultimate` 逐个真实请求验证 HTTP 200 且返回正文，全部收录；其余 key 一概不暴露。宁少不假。
 
 ## 使用
 
 ### 模型调用
 
-在 DSH 模型选择器中选择 Qoder 系列模型即可对话。支持思考程度档位的模型会在选择器中暴露 `off / low / medium / high / xhigh` 等档位（档位集合取自客户端模型目录的 `thinking_config`，不同模型不同），选择后插件将 DSH 传来的 `reasoning_effort` 原样透传给上游。**免费模型 `Qwen3.8-Flash` 与 `Qwen3.7-Plus` 为开箱即用推荐模型**；选择其余高级模型时若上游返回 `invalid_model_error`，说明该模型尚未开放给 `api2-v2` 网关，请改用上述推荐模型。
+在 DSH 模型选择器中选择 Qoder 系列模型即可对话。支持思考档位的模型会在选择器中暴露档位（档位集合由 `lib/index.js` 的 `reasoningFields()` 按模型的 `reasoning.efforts` 生成），选择后插件将 DSH 传来的 `reasoning_effort` 原样透传给上游。**`Qwen-Flash` 为免费模型（`price_factor: 0`），适合日常主力使用**；`GLM-5.3` / `DeepSeek-V4-Pro` / `Kimi-K2.8-Preview` 会先输出 `reasoning_content` 思考流再输出正文，思考内容会一并转发给 DSH。
 
 ### 状态卡片
 
@@ -87,9 +87,11 @@ DSH 设置页 → 插件 → `dsh-qoder-connect`，可看到：
 - **推理协议**：Qoder 网关接受 `Bearer <dt- OAuth token>` 直接调用 `POST https://api2-v2.qoder.sh/model/v1/chat/completions`（OpenAI 兼容流式）。插件在本地起一个 OpenAI 兼容 shim，把 DSH 的请求转发到该网关，并把响应的 SSE 流原样返回。
 - **额度与签到**：调用 `GET https://openapi.qoder.sh/sash/api/v2/me/usage` 查询积分；`GET https://openapi.qoder.com.cn/sash/api/v1/me/campaigns`（CN 用 `.com.cn`）获取每日签到活动列表，再对 `CLAIMABLE` 的活动调用 claim 接口领取。
 - **区域隔离**：Qoder CN 的 `dt-` 令牌只在 CN 域生效，且 CN 推理面位于 VPC 私网，公网不可达；因此 CN 账号的额度/签到走 CN 网关，模型推理委托给国际通道，卡片中分别展示。
-- **模型目录**：插件内置的 `CATALOG` 由 Qoder 客户端本地模型缓存（`~/.qoder/.models/<uid>/catalog-v6`，AES 加密）经客户端 SDK 的解密函数解码而来，因此模型 key、显示名、思考档位、上下文长度均与桌面客户端一致（0.1.2 起，替换了早期手写的旧快照）。
-- **模型 ID 映射**：客户端目录的 `key` 是 UI 标识（如 `qfmodel` = Qwen3.8-Flash），而 `api2-v2` 网关要求真实推理模型 ID（如 `qwen-flash`）。0.1.3 起插件内置 `MODEL_ID_ALIAS`（`qfmodel → qwen-flash`、`qmodel → qwen-plus`），在 `buildChatBody` 中完成映射后再发送；未映射的 key 原样透传，由网关决定是否支持。
+- **模型目录（0.1.5 重构）**：早期版本把客户端模型缓存（`~/.qoder/.models/<uid>/catalog-v6`，AES 加密）解码后的 UI 列表直接当作 DSH 可选模型，结果是「列表很丰富、选一个报一个错」。0.1.5 改为以**推理网关实测白名单**为准：只有 `auto` / `qwen-plus` / `qwen-flash` / `gmodel` / `dmodel` / `kmodel` / `mmodel` / `performance` / `ultimate` 这 9 个 key 被逐个发真实请求验证（HTTP 200 + 正文非空）后收录，客户端 UI key 不再暴露。
+- **模型 ID 映射**：`MODEL_ID_ALIAS` 保留 `qfmodel → qwen-flash`、`qmodel → qwen-plus`、`auto → auto` 三条兼容映射，用于历史配置里残留的旧 key；新目录已直接使用网关 ID，映射表只作兜底。
+- **思考流**：上游对 `gmodel` / `dmodel` / `kmodel` 等思考型模型返回 `delta.reasoning_content` 字段承载思考过程。流式路径由 `onDataFrame` 原样转发；非流式路径在 `index.js` 聚合后回填为 `message.reasoning_content`，思考内容不丢失。
 - **5xx 自动重试（0.1.4）**：免费模型后端偶发 `500 internal server error`（瞬时抖动）。`chat()` 对 5xx 响应自动重试最多 3 次（300ms / 600ms / 900ms 退避），大幅减少用户可见的偶发 500；连续失败才向上抛出原始错误。
+- **上游瞬时 `provider_error`（0.1.5 说明）**：网关偶尔对所有模型返回 `{"error":{"code":"provider_error","message":"All models failed"}}`（后端波动，非插件或凭据问题）。此时任何模型都会失败，稍后重试即恢复；凭据过期时间可用卡片确认，若未过期则不需要重新登录。
 - **思考程度透传**：DSH 的 pi-ai 层把用户选择的思考程度映射为 `reasoning_effort` 参数发送给 shim；`buildChatBody` 检测到该字段后**原样写入**上游请求体，不做映射、改名或丢弃。已实测 `high` / `xhigh` 真实请求返回 200 且响应正常。
 
 ## 常见问题

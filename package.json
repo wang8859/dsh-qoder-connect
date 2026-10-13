@@ -1,6 +1,6 @@
 {
   "name": "dsh-qoder-connect",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Qoder / Qoder CN reverse proxy for DSH: use Qoder credits and models inside DSH, with automatic daily credit claiming.",
   "type": "module",
   "main": "lib/index.js",
