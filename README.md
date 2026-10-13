@@ -91,7 +91,7 @@ DSH 设置页 → 插件 → `dsh-qoder-connect`，可看到：
 - **模型 ID 映射**：`MODEL_ID_ALIAS` 保留 `qfmodel → qwen-flash`、`qmodel → qwen-plus`、`auto → auto` 三条兼容映射，用于历史配置里残留的旧 key；新目录已直接使用网关 ID，映射表只作兜底。
 - **思考流**：上游对 `gmodel` / `dmodel` / `kmodel` 等思考型模型返回 `delta.reasoning_content` 字段承载思考过程。流式路径由 `onDataFrame` 原样转发；非流式路径在 `index.js` 聚合后回填为 `message.reasoning_content`，思考内容不丢失。
 - **5xx 自动重试（0.1.4）**：免费模型后端偶发 `500 internal server error`（瞬时抖动）。`chat()` 对 5xx 响应自动重试最多 3 次（300ms / 600ms / 900ms 退避），大幅减少用户可见的偶发 500；连续失败才向上抛出原始错误。
-- **上游瞬时 `provider_error`（0.1.5 说明）**：网关偶尔对所有模型返回 `{"error":{"code":"provider_error","message":"All models failed"}}`（后端波动，非插件或凭据问题）。此时任何模型都会失败，稍后重试即恢复；凭据过期时间可用卡片确认，若未过期则不需要重新登录。
+- **流内瞬时错误重试（0.1.6）**：网关有时**先回 HTTP 200**，再把故障作为 SSE 错误帧塞进流里（`{"code":"provider_error","message":"All models failed"}`，所有后端短暂繁忙）。这类错误在首帧预筛阶段抛出，早于状态码分支，所以 0.1.4 的重试兜不住。0.1.6 增加 `isTransientUpstreamError()` 分诊：`provider_error` 走同样的 3 次退避重试；队列（`10605`）、计费（`110`）、鉴权（`105`）错误**明确排除**，仍原样上抛，避免把不可重试的错误拖成超时。
 - **思考程度透传**：DSH 的 pi-ai 层把用户选择的思考程度映射为 `reasoning_effort` 参数发送给 shim；`buildChatBody` 检测到该字段后**原样写入**上游请求体，不做映射、改名或丢弃。已实测 `high` / `xhigh` 真实请求返回 200 且响应正常。
 
 ## 常见问题
